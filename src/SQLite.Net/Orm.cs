@@ -77,8 +77,12 @@ namespace SQLite.Net
             }
             if (clrType == typeof (String))
             {
-                int len = p.MaxStringLength;
-                return "varchar(" + len + ")";
+                int? len = p.MaxStringLength;
+
+                if (len.HasValue)
+                    return "varchar(" + len.Value + ")";
+
+                return "varchar";
             }
             if (clrType == typeof (TimeSpan))
             {
@@ -131,14 +135,14 @@ namespace SQLite.Net
             return attrs.Cast<IndexedAttribute>();
         }
 
-        public static int MaxStringLength(PropertyInfo p)
+        public static int? MaxStringLength(PropertyInfo p)
         {
             object[] attrs = p.GetCustomAttributes(typeof (MaxLengthAttribute), true);
             if (attrs.Length > 0)
             {
                 return ((MaxLengthAttribute) attrs[0]).Value;
             }
-            return DefaultMaxStringLength;
+            return null;
         }
 
         public static bool IsMarkedNotNull(MemberInfo p)
