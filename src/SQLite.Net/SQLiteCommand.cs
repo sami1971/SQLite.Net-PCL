@@ -290,6 +290,10 @@ namespace SQLite.Net
                             NegativePointer);
                     }
                 }
+                else if (value is DateTimeOffset)
+                {
+                    isqLite3Api.BindInt64(stmt, index, ((DateTimeOffset) value).UtcTicks);
+                }
                 else if (value.GetType().IsEnum)
                 {
                     isqLite3Api.BindInt(stmt, index, Convert.ToInt32(value));
@@ -347,6 +351,10 @@ namespace SQLite.Net
                 }
                 string text = _sqlitePlatform.SQLiteApi.ColumnText16(stmt, index);
                 return DateTime.Parse(text);
+            }
+            if (clrType == typeof (DateTimeOffset))
+            {
+                return new DateTimeOffset(_sqlitePlatform.SQLiteApi.ColumnInt64(stmt, index), TimeSpan.Zero);
             }
             if (clrType.IsEnum)
             {

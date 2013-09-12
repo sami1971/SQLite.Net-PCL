@@ -78,6 +78,7 @@
     <Compile Include="OpenTests.cs" />
     <Compile Include="MigrationTest.cs" />
     <Compile Include="EqualsTest.cs" />
+    <Compile Include="DateTimeOffsetTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\src\SQLite.Net.Async\SQLite.Net.Async.csproj">
