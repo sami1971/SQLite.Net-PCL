@@ -246,6 +246,7 @@ namespace SQLite.Net.Tests
             public Bool EnumBool{ get; set; }
             public Guid Guid{ get; set; }
             public byte[] Bytes{ get; set; }
+            public TimeSpan Timespan { get; set; }
         }
 
         public class UnsupportedTypes
@@ -253,7 +254,7 @@ namespace SQLite.Net.Tests
             [PrimaryKey]
             public Guid Id { get; set; }
 
-            public TimeSpan Timespan { get; set; }
+            
             public DateTimeOffset DateTimeOffset { get; set; }
         }
 
@@ -325,9 +326,8 @@ namespace SQLite.Net.Tests
             }
 
             Assert.Contains(typeof(DateTimeOffset), types);
-            Assert.Contains(typeof(TimeSpan), types);
 
-            Assert.AreEqual(2, types.Count, "Too many types requested by serializer");
+            Assert.AreEqual(1, types.Count, "Too many types requested by serializer");
         }
 
         [Test]
@@ -346,12 +346,6 @@ namespace SQLite.Net.Tests
                         Buffer.BlockCopy(BitConverter.GetBytes(offset.Ticks), 0, bytes, 0, 8);
                         Buffer.BlockCopy(BitConverter.GetBytes(offset.Offset.Ticks), 0, bytes, 8, 8);
                         return bytes;
-                    }
-
-                    if (obj is TimeSpan)
-                    {
-                        Assert.AreEqual(item.Timespan, obj);
-                        return BitConverter.GetBytes(((TimeSpan)obj).Ticks);
                     }
 
                     throw new InvalidOperationException(string.Format("Type {0} should not be requested.", obj.GetType()));
@@ -380,8 +374,7 @@ namespace SQLite.Net.Tests
                 item = new UnsupportedTypes() 
                 {
                     Id = Guid.NewGuid(),
-                    DateTimeOffset = DateTime.Now, 
-                    Timespan = TimeSpan.FromTicks(123469)
+                    DateTimeOffset = DateTime.Now
                 };
 
                 db.Insert(item);
@@ -389,7 +382,6 @@ namespace SQLite.Net.Tests
 
                 Assert.AreEqual(item.Id, dbItem.Id);
                 Assert.AreEqual(item.DateTimeOffset, dbItem.DateTimeOffset);
-                Assert.AreEqual(item.Timespan, dbItem.Timespan);
             }
         }
     }

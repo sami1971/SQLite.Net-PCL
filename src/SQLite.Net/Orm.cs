@@ -96,6 +96,10 @@ namespace SQLite.Net
             {
                 return "blob";
             }
+            if (clrType == typeof (Guid))
+            {
+                return "varchar(36)";
+            }
             if (serializer != null && serializer.CanDeserialize(clrType))
             {
                 return "blob";
