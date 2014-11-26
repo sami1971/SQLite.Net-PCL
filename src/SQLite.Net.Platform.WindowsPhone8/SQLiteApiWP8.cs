@@ -9,11 +9,26 @@ namespace SQLite.Net.Platform.WindowsPhone8
     {
         public Result Open(byte[] filename, out IDbHandle db, int flags, IntPtr zVfs)
         {
-            string dbFileName = Encoding.UTF8.GetString(filename, 0, filename.Length);
+            string dbFileName = Encoding.UTF8.GetString(filename, 0, filename.Length -1 );
             Database internalDbHandle = null;
             var ret = (Result)Sqlite3.sqlite3_open_v2(dbFileName, out internalDbHandle, flags, "");
             db = new DbHandle(internalDbHandle);
             return ret;
+        }
+
+        public ExtendedResult ExtendedErrCode(IDbHandle db)
+        {
+            // not supported
+            return 0;
+//            var dbHandle = (DbHandle)db;
+//            return Sqlite3.sqlite3_extended_errcode(dbHandle.InternalDbHandle);
+        }
+
+        public int LibVersionNumber()
+        {
+            // not supported
+            return 0;
+//            return Sqlite3.sqlite3_libversion_number();
         }
 
         public Result EnableLoadExtension(IDbHandle db, int onoff)
@@ -26,6 +41,20 @@ namespace SQLite.Net.Platform.WindowsPhone8
         {
             var dbHandle = (DbHandle)db;
             return (Result)Sqlite3.sqlite3_close(dbHandle.InternalDbHandle);
+        }
+
+        public Result Initialize()
+        {
+            throw new NotSupportedException();
+        }
+        public Result Shutdown()
+        {
+            throw new NotSupportedException();
+        }
+
+        public Result Config(ConfigOption option)
+        {
+            throw new NotSupportedException();
         }
 
         public Result BusyTimeout(IDbHandle db, int milliseconds)

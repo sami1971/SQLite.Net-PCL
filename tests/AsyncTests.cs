@@ -10,15 +10,17 @@ using SQLite.Net.Async;
 using SQLite.Net.Attributes;
 
 #if __WIN32__
-using SQLitePlatformTest=SQLite.Net.Platform.Win32.SQLitePlatformWin32;
-#elif NETFX_CORE
-using SQLitePlatformTest = SQLite.Net.Platform.WinRT.SQLitePlatformWinRT;
+using SQLitePlatformTest = SQLite.Net.Platform.Win32.SQLitePlatformWin32;
 #elif WINDOWS_PHONE
 using SQLitePlatformTest = SQLite.Net.Platform.WindowsPhone8.SQLitePlatformWP8;
+#elif __WINRT__
+using SQLitePlatformTest = SQLite.Net.Platform.WinRT.SQLitePlatformWinRT;
 #elif __IOS__
 using SQLitePlatformTest = SQLite.Net.Platform.XamarinIOS.SQLitePlatformIOS;
 #elif __ANDROID__
 using SQLitePlatformTest = SQLite.Net.Platform.XamarinAndroid.SQLitePlatformAndroid;
+#else
+using SQLitePlatformTest = SQLite.Net.Platform.Generic.SQLitePlatformGeneric;
 #endif
 
 namespace SQLite.Net.Tests
@@ -296,6 +298,59 @@ namespace SQLite.Net.Tests
 
             // check...
             Assert.AreEqual(1, string.Compare(items[0].Email, items[9].Email));
+        }
+
+        [Test]
+        public async Task TestAsyncTableThenBy()
+        {
+            SQLiteAsyncConnection conn = GetConnection();
+            await conn.CreateTableAsync<Customer>();
+            await conn.ExecuteAsync("delete from customer");
+
+            // create...
+            for (int index = 0; index < 10; index++)
+            {
+                await conn.InsertAsync(CreateCustomer());
+            }
+            var preceedingFirstNameCustomer = CreateCustomer();
+            preceedingFirstNameCustomer.FirstName = "a" + preceedingFirstNameCustomer.FirstName;
+            await conn.InsertAsync(preceedingFirstNameCustomer);
+
+            // query...
+            AsyncTableQuery<Customer> query = conn.Table<Customer>().OrderBy(v => v.FirstName).ThenBy(v => v.Email);
+            var items = await query.ToListAsync();
+
+            // check...
+            var list = (await conn.Table<Customer>().ToListAsync()).OrderBy(v => v.FirstName).ThenBy(v => v.Email).ToList();
+            for (var i = 0; i < list.Count; i++)
+                Assert.AreEqual(list[i].Email, items[i].Email);
+        }
+
+        [Test]
+        public async Task TestAsyncTableThenByDescending()
+        {
+            SQLiteAsyncConnection conn = GetConnection();
+            await conn.CreateTableAsync<Customer>();
+            await conn.ExecuteAsync("delete from customer");
+
+            // create...
+            for (int index = 0; index < 10; index++)
+            {
+                await conn.InsertAsync(CreateCustomer());
+            }
+            var preceedingFirstNameCustomer = CreateCustomer();
+            preceedingFirstNameCustomer.FirstName = "a" + preceedingFirstNameCustomer.FirstName;
+            await conn.InsertAsync(preceedingFirstNameCustomer);
+
+            // query...
+            AsyncTableQuery<Customer> query = conn.Table<Customer>().OrderBy(v => v.FirstName).ThenByDescending(v => v.Email);
+            var items = await query.ToListAsync();
+
+
+            // check...
+            var list = (await conn.Table<Customer>().ToListAsync()).OrderBy(v => v.FirstName).ThenByDescending(v => v.Email).ToList();
+            for (var i = 0; i < list.Count; i++)
+                Assert.AreEqual(list[i].Email, items[i].Email);
         }
 
         [Test]
@@ -668,6 +723,115 @@ namespace SQLite.Net.Tests
                 // load it back...
                 var loaded = check.Get<Customer>(customer.Id);
                 Assert.AreEqual(loaded.Id, customer.Id);
+            }
+        }
+
+        [Test]
+        public async Task TestInsertOrReplaceAllAsync()
+        {
+            // create a bunch of customers...
+            var customers = new List<Customer>();
+            for (int index = 0; index < 100; index++)
+            {
+                var customer = new Customer();
+                customer.Id = index;
+                customer.FirstName = "foo";
+                customer.LastName = "bar";
+                customer.Email = Guid.NewGuid().ToString();
+                customers.Add(customer);
+            }
+
+            // connect...
+            string path = null;
+            SQLiteAsyncConnection conn = GetConnection(ref path);
+            await conn.CreateTableAsync<Customer>();
+
+            // insert them all...
+            await conn.InsertOrReplaceAllAsync(customers);
+
+            // change the existing ones...
+            foreach (var customer in customers)
+            {
+                customer.FirstName = "baz";
+                customer.LastName = "biz";
+            }
+
+            // ... and add a few more
+            for (int index = 100; index < 200; index++)
+            {
+                var customer = new Customer();
+                customer.Id = index;
+                customer.FirstName = "foo";
+                customer.LastName = "bar";
+                customer.Email = Guid.NewGuid().ToString();
+                customers.Add(customer);
+            }
+
+            // insert them all, replacing the already existing ones
+            await conn.InsertOrReplaceAllAsync(customers);
+
+            // check...
+            using (var check = new SQLiteConnection(_sqlite3Platform, path))
+            {
+                for (int index = 0; index < customers.Count; index++)
+                {
+                    // load it back and check...
+                    var loaded = check.Get<Customer>(customers[index].Id);
+                    Assert.AreEqual(loaded.FirstName, customers[index].FirstName);
+                    Assert.AreEqual(loaded.LastName, customers[index].LastName);
+                    Assert.AreEqual(loaded.Email, customers[index].Email);
+                }
+            }
+
+        }
+
+        [Test]
+        public async Task TestInsertOrReplaceAsync()
+        {
+            // create...
+            var customer = new Customer();
+            customer.Id = 42;
+            customer.FirstName = "foo";
+            customer.LastName = "bar";
+            customer.Email = Guid.NewGuid().ToString();
+
+            // connect...
+            string path = null;
+            SQLiteAsyncConnection conn = GetConnection(ref path);
+            await conn.CreateTableAsync<Customer>();
+
+            // run...
+            await conn.InsertOrReplaceAsync(customer);
+
+            // check...
+            using (var check = new SQLiteConnection(_sqlite3Platform, path))
+            {
+                // load it back...
+                var loaded = check.Get<Customer>(customer.Id);
+                Assert.AreEqual(loaded.Id, customer.Id);
+                Assert.AreEqual(loaded.FirstName, customer.FirstName);
+                Assert.AreEqual(loaded.LastName, customer.LastName);
+                Assert.AreEqual(loaded.Email, customer.Email);
+            }
+
+            // change ...
+            customer.FirstName = "baz";
+            customer.LastName = "biz";
+            customer.Email = Guid.NewGuid().ToString();
+
+            // replace...
+            await conn.InsertOrReplaceAsync(customer);
+
+            // check again...
+            // check...
+            using (var check = new SQLiteConnection(_sqlite3Platform, path))
+            {
+                // load it back...
+                var loaded = check.Get<Customer>(customer.Id);
+                Assert.AreEqual(loaded.Id, customer.Id);
+                Assert.AreEqual(loaded.FirstName, customer.FirstName);
+                Assert.AreEqual(loaded.LastName, customer.LastName);
+                Assert.AreEqual(loaded.Email, customer.Email);
             }
         }
 

@@ -2,18 +2,21 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
 
-#if __ANDROID__
-using SQLite.Net.Platform.XamarinAndroid;
-#elif __IOS__
-using SQLite.Net.Platform.XamarinIOS;
+#if __WIN32__
+using SQLitePlatformTest = SQLite.Net.Platform.Win32.SQLitePlatformWin32;
 #elif WINDOWS_PHONE
-using SQLite.Net.Platform.WindowsPhone8;
-using Windows.Storage;
+using SQLitePlatformTest = SQLite.Net.Platform.WindowsPhone8.SQLitePlatformWP8;
+#elif __WINRT__
+using SQLitePlatformTest = SQLite.Net.Platform.WinRT.SQLitePlatformWinRT;
+#elif __IOS__
+using SQLitePlatformTest = SQLite.Net.Platform.XamarinIOS.SQLitePlatformIOS;
+#elif __ANDROID__
+using SQLitePlatformTest = SQLite.Net.Platform.XamarinAndroid.SQLitePlatformAndroid;
 #else
-using SQLitePlatform = SQLite.Net.Platform.Win32.SQLitePlatformWin32;
+using SQLitePlatformTest = SQLite.Net.Platform.Generic.SQLitePlatformGeneric;
 #endif
 
 #if WINDOWS_PHONE
@@ -36,7 +39,7 @@ namespace SQLite.Net.Tests
         public class BlobDatabase : SQLiteConnection
         {
             public BlobDatabase(IBlobSerializer serializer) :
-                base(new SQLitePlatform(), TestPath.GetTempFileName(), false, serializer)
+                base(new SQLitePlatformTest(), TestPath.GetTempFileName(), false, serializer)
             {
                 DropTable<ComplexOrder>();
             }
@@ -285,8 +288,8 @@ namespace SQLite.Net.Tests
                 db.CreateTable<ComplexOrder>();
             }
 
-            Assert.Contains(typeof(List<ComplexHistory>), types);
-            Assert.Contains(typeof(List<ComplexLine>), types);
+            Assert.That(types, Has.Member(typeof (List<ComplexHistory>)));
+            Assert.That(types, Has.Member(typeof (List<ComplexLine>)));
 
             Assert.AreEqual(2, types.Count, "Too many types requested by serializer");
         }
@@ -325,7 +328,7 @@ namespace SQLite.Net.Tests
                 db.CreateTable<UnsupportedTypes>();
             }
 
-            Assert.Contains(typeof(DateTimeOffset), types);
+            Assert.That(types, Has.Member(typeof (DateTimeOffset)));
 
             Assert.AreEqual(1, types.Count, "Too many types requested by serializer");
         }

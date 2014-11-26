@@ -4,9 +4,9 @@ using System.Linq.Expressions;
 using System.Reflection;
 using SQLite.Net.Interop;
 
-namespace SQLite.Net.Silverlight
+namespace SQLite.Net.Platform.Generic
 {
-    public class ReflectionServiceSilverLight : IReflectionService
+    public class ReflectionServiceGeneric : IReflectionService
     {
         public IEnumerable<PropertyInfo> GetPublicInstanceProperties(Type mappedType)
         {
@@ -22,7 +22,8 @@ namespace SQLite.Net.Silverlight
             }
             if (member.MemberType == MemberTypes.Field)
             {
-                return Expression.Lambda(expr).Compile().DynamicInvoke();
+                var m = (FieldInfo) member;
+                return m.GetValue(obj);
             }
             throw new NotSupportedException("MemberExpr: " + member.MemberType);
         }
