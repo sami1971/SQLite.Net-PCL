@@ -148,6 +148,46 @@ namespace SQLite.Net.Tests
             Assert.That(found.GuidValue.InnerValue, Is.EqualTo(value));
         }
 
+        [Test]
+        public void SerializableBug()
+        {
+            var failedSerializable = new FailedSerializable()
+            {
+                SerializableInt = new FailedWrapper<int>()
+                {
+                    Item = 1
+                }
+            };
+
+            this._db.CreateTable<FailedSerializable>();
+
+            _db.Insert(failedSerializable);
+            var found = _db.Get<FailedSerializable>(m => m.ID == failedSerializable.ID);
+            Assert.That(found.SerializableInt.Item, Is.EqualTo(1));
+        }
+
+        private class FailedSerializable
+        {
+            [AutoIncrement, PrimaryKey]
+            public int ID { get; set; }
+
+            public FailedWrapper<int> SerializableInt { get; set; }
+        }
+
+        private class FailedWrapper<T> : ISerializable<T>
+        {
+            public T Item { get; set; }
+
+            #region ISerializable<T> Members
+
+            public T Serialize()
+            {
+                return this.Item;
+            }
+
+            #endregion
+        }
+
         private class ComplexType
         {
             [AutoIncrement, PrimaryKey]
