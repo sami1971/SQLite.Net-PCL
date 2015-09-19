@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) 2012 Krueger Systems, Inc.
 // Copyright (c) 2013 Øystein Krog (oystein.krog@gmail.com)
 // 
@@ -22,6 +22,7 @@
 //
 
 using System.Collections.Generic;
+using JetBrains.Annotations;
 using SQLite.Net.Interop;
 
 namespace SQLite.Net
@@ -32,17 +33,19 @@ namespace SQLite.Net
         private readonly object _entriesLock = new object();
         private readonly ISQLitePlatform _sqlitePlatform;
 
+        [PublicAPI]
         public SQLiteConnectionPool(ISQLitePlatform sqlitePlatform)
         {
             _sqlitePlatform = sqlitePlatform;
         }
 
+        [PublicAPI]
         public SQLiteConnectionWithLock GetConnection(SQLiteConnectionString connectionString)
         {
             lock (_entriesLock)
             {
                 Entry entry;
-                string key = connectionString.ConnectionString;
+                var key = connectionString.ConnectionString;
 
                 if (!_entries.TryGetValue(key, out entry))
                 {
@@ -57,11 +60,12 @@ namespace SQLite.Net
         /// <summary>
         ///     Closes all connections managed by this pool.
         /// </summary>
+        [PublicAPI]
         public void Reset()
         {
             lock (_entriesLock)
             {
-                foreach (Entry entry in _entries.Values)
+                foreach (var entry in _entries.Values)
                 {
                     entry.OnApplicationSuspended();
                 }
@@ -73,6 +77,7 @@ namespace SQLite.Net
         ///     Call this method when the application is suspended.
         /// </summary>
         /// <remarks>Behaviour here is to close any open connections.</remarks>
+        [PublicAPI]
         public void ApplicationSuspended()
         {
             Reset();

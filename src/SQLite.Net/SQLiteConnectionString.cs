@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) 2012 Krueger Systems, Inc.
 // Copyright (c) 2013 Øystein Krog (oystein.krog@gmail.com)
 // 
@@ -21,6 +21,9 @@
 // THE SOFTWARE.
 //
 
+using JetBrains.Annotations;
+using SQLite.Net.Interop;
+
 namespace SQLite.Net
 {
     /// <summary>
@@ -28,19 +31,37 @@ namespace SQLite.Net
     /// </summary>
     public class SQLiteConnectionString
     {
+        [PublicAPI]
         public SQLiteConnectionString(string databasePath, bool storeDateTimeAsTicks,
-            IBlobSerializer serializer = null)
+            IBlobSerializer serializer = null,
+            IContractResolver resolver = null,
+            SQLiteOpenFlags? openFlags = null)
         {
             ConnectionString = databasePath;
             StoreDateTimeAsTicks = storeDateTimeAsTicks;
 
             DatabasePath = databasePath;
             Serializer = serializer;
+            Resolver = resolver ?? ContractResolver.Current;
+            OpenFlags = openFlags ?? SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create;
         }
 
+        [PublicAPI]
         public string ConnectionString { get; private set; }
+
+        [PublicAPI]
         public string DatabasePath { get; private set; }
+
+        [PublicAPI]
         public bool StoreDateTimeAsTicks { get; private set; }
+
+        [PublicAPI]
         public IBlobSerializer Serializer { get; private set; }
+
+        [PublicAPI]
+        public IContractResolver Resolver { get; private set; }
+
+        [PublicAPI]
+        public SQLiteOpenFlags OpenFlags {get; private set; } 
     }
 }

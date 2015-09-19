@@ -13,29 +13,35 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 //
+
 using System;
+using JetBrains.Annotations;
+
 namespace SQLite.Net
 {
     /// <summary>
-    /// The TextSerializer interface.
+    ///     The TextSerializer interface.
     /// </summary>
     public interface IBlobSerializer
     {
         /// <summary>
-        /// Serializes object to a byte buffer
+        ///     Serializes object to a byte buffer
         /// </summary>
         /// <param name="obj">Object to serialize</param>
         /// <returns>Serialized blob of the object</returns>
-		byte[] Serialize<T>(T obj);
+        [PublicAPI]
+        byte[] Serialize<T>(T obj);
 
         /// <summary>
-        /// Deserializes byte buffer into an object
+        ///     Deserializes byte buffer into an object
         /// </summary>
         /// <param name="data">Serialized object</param>
         /// <param name="type">Type of object</param>
         /// <returns>Deserialized object</returns>
+        [PublicAPI]
         object Deserialize(byte[] data, Type type);
 
+        [PublicAPI]
         bool CanDeserialize(Type type);
     }
 }

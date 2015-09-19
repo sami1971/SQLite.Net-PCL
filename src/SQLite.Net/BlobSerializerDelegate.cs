@@ -1,44 +1,50 @@
 ﻿using System;
+using JetBrains.Annotations;
 
 namespace SQLite.Net
 {
     public class BlobSerializerDelegate : IBlobSerializer
     {
-        public delegate byte[] SerializeDelegate(object obj);
         public delegate bool CanSerializeDelegate(Type type);
+
         public delegate object DeserializeDelegate(byte[] data, Type type);
 
-        private readonly SerializeDelegate serializeDelegate;
-        private readonly DeserializeDelegate deserializeDelegate;
-        private readonly CanSerializeDelegate canDeserializeDelegate;
+        public delegate byte[] SerializeDelegate(object obj);
 
-        public BlobSerializerDelegate (SerializeDelegate serializeDelegate, 
+        private readonly CanSerializeDelegate _canDeserializeDelegate;
+        private readonly DeserializeDelegate _deserializeDelegate;
+        private readonly SerializeDelegate _serializeDelegate;
+
+        [PublicAPI]
+        public BlobSerializerDelegate(SerializeDelegate serializeDelegate,
             DeserializeDelegate deserializeDelegate,
             CanSerializeDelegate canDeserializeDelegate)
         {
-            this.serializeDelegate = serializeDelegate;
-            this.deserializeDelegate = deserializeDelegate;
-            this.canDeserializeDelegate = canDeserializeDelegate;
+            _serializeDelegate = serializeDelegate;
+            _deserializeDelegate = deserializeDelegate;
+            _canDeserializeDelegate = canDeserializeDelegate;
         }
 
         #region IBlobSerializer implementation
 
+        [PublicAPI]
         public byte[] Serialize<T>(T obj)
         {
-            return this.serializeDelegate (obj);
+            return _serializeDelegate(obj);
         }
 
+        [PublicAPI]
         public object Deserialize(byte[] data, Type type)
         {
-            return this.deserializeDelegate (data, type);
+            return _deserializeDelegate(data, type);
         }
 
+        [PublicAPI]
         public bool CanDeserialize(Type type)
         {
-            return this.canDeserializeDelegate (type);
+            return _canDeserializeDelegate(type);
         }
 
         #endregion
     }
 }
-

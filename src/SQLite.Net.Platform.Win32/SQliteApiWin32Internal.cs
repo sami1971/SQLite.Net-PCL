@@ -10,19 +10,42 @@ namespace SQLite.Net.Platform.Win32
     {
         static SQLiteApiWin32Internal()
         {
-            // load native library
-            int ptrSize = Marshal.SizeOf(typeof (IntPtr));
-            string relativePath = ptrSize == 8 ? @"x64\SQLite.Interop.dll" : @"x86\SQLite.Interop.dll";
-            string assemblyCurrentPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            string assemblyInteropPath = Path.Combine(assemblyCurrentPath, relativePath);
+            int ptrSize = IntPtr.Size;
+            var architectureDirectory = (ptrSize == 8 ? "x64" : "x86");
+            var interopFilename = "SQLite.Interop.dll";
 
-            // try relative to assembly first, if that does not exist try relative to working dir
-            string interopPath = File.Exists(assemblyInteropPath) ? assemblyInteropPath : relativePath;
+            string interopPath = null;
+            if (!string.IsNullOrWhiteSpace(SQLiteApiWin32InternalConfiguration.NativeInteropSearchPath))
+            {
+                // a NativeInteropSearchPath is given, so we try to find the file name there
+                var fileInSearchPath = Path.Combine(SQLiteApiWin32InternalConfiguration.NativeInteropSearchPath, interopFilename);
+                if (File.Exists(fileInSearchPath))
+                {
+                    interopPath = fileInSearchPath;
+                }
+                else
+                {
+                    var fileInSearchPathWithArchitecture = Path.Combine(SQLiteApiWin32InternalConfiguration.NativeInteropSearchPath, architectureDirectory, interopFilename);
+                    if (File.Exists(fileInSearchPathWithArchitecture))
+                        interopPath = fileInSearchPathWithArchitecture;
+                }
+            }
+
+            if (interopPath == null)
+            {
+                // no NativeInteropSearchPath given (or nothing found using this path) so load native library from assembly execution direcotry
+                string assemblyCurrentPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string relativePath = architectureDirectory + "\\" + interopFilename;
+                string assemblyInteropPath = Path.Combine(assemblyCurrentPath, architectureDirectory, interopFilename);
+
+                // try relative to assembly first, if that does not exist try relative to working dir
+                interopPath = File.Exists(assemblyInteropPath) ? assemblyInteropPath : relativePath;                
+            }
 
             IntPtr ret = LoadLibrary(interopPath);
             if (ret == IntPtr.Zero)
             {
-                throw new Exception("Failed to load native sqlite library");
+                throw new Exception("Failed to load native sqlite library from " + interopPath);
             }
         }
 
@@ -190,5 +213,33 @@ namespace SQLite.Net.Platform.Win32
 
         [DllImport("SQLite.Interop.dll", EntryPoint = "sqlite3_libversion_number", CallingConvention = CallingConvention.Cdecl)]
         public static extern int sqlite3_libversion_number();
+
+        [DllImport("SQLite.Interop.dll", EntryPoint = "sqlite3_sourceid", CallingConvention = CallingConvention.Cdecl)]
+		public static extern IntPtr sqlite3_sourceid();
+
+        #region Backup
+        
+        [DllImport("SQLite.Interop.dll", EntryPoint = "sqlite3_backup_init", CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr sqlite3_backup_init(IntPtr destDB,
+                                                        [MarshalAs(UnmanagedType.LPStr)] string  destName, 
+                                                        IntPtr srcDB,
+                                                        [MarshalAs(UnmanagedType.LPStr)] string srcName);
+        
+        [DllImport("SQLite.Interop.dll", EntryPoint = "sqlite3_backup_step", CallingConvention = CallingConvention.Cdecl)]
+        public static extern Result sqlite3_backup_step(IntPtr backup, int pageCount);
+        
+        [DllImport("SQLite.Interop.dll", EntryPoint = "sqlite3_backup_finish", CallingConvention = CallingConvention.Cdecl)]
+        public static extern Result sqlite3_backup_finish(IntPtr backup);
+        
+        [DllImport("SQLite.Interop.dll", EntryPoint = "sqlite3_backup_remaining", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int sqlite3_backup_remaining(IntPtr backup);
+        
+        [DllImport("SQLite.Interop.dll", EntryPoint = "sqlite3_backup_pagecount", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int sqlite3_backup_pagecount(IntPtr backup);
+        
+        [DllImport("SQLite.Interop.dll", EntryPoint = "sqlite3_sleep", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int sqlite3_sleep(int millis);
+        
+        #endregion
     }
 }

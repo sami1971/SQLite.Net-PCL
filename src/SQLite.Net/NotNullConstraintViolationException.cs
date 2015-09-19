@@ -22,18 +22,15 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using JetBrains.Annotations;
 using SQLite.Net.Interop;
 
 namespace SQLite.Net
 {
+    [PublicAPI]
     public class NotNullConstraintViolationException : SQLiteException
     {
-        protected NotNullConstraintViolationException(Result r, string message)
-            : this(r, message, null, null)
-        {
-        }
-
-        protected NotNullConstraintViolationException(Result r, string message, TableMapping mapping, object obj)
+        protected NotNullConstraintViolationException(Result r, string message, TableMapping mapping = null, object obj = null)
             : base(r, message)
         {
             if (mapping != null && obj != null)
@@ -44,19 +41,20 @@ namespace SQLite.Net
             }
         }
 
+        [PublicAPI]
         public IEnumerable<TableMapping.Column> Columns { get; protected set; }
 
-        public new static NotNullConstraintViolationException New(Result r, string message)
+        internal new static NotNullConstraintViolationException New(Result r, string message)
         {
             return new NotNullConstraintViolationException(r, message);
         }
 
-        public static NotNullConstraintViolationException New(Result r, string message, TableMapping mapping, object obj)
+        internal static NotNullConstraintViolationException New(Result r, string message, TableMapping mapping, object obj)
         {
             return new NotNullConstraintViolationException(r, message, mapping, obj);
         }
 
-        public static NotNullConstraintViolationException New(SQLiteException exception, TableMapping mapping, object obj)
+        internal static NotNullConstraintViolationException New(SQLiteException exception, TableMapping mapping, object obj)
         {
             return new NotNullConstraintViolationException(exception.Result, exception.Message, mapping, obj);
         }

@@ -1,6 +1,6 @@
 //
 // Copyright (c) 2012 Krueger Systems, Inc.
-// Copyright (c) 2013 Øystein Krog (oystein.krog@gmail.com)
+// Copyright (c) 2013 Ã˜ystein Krog (oystein.krog@gmail.com)
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using JetBrains.Annotations;
 using SQLite.Net.Attributes;
 using SQLite.Net.Interop;
 
@@ -32,28 +33,23 @@ namespace SQLite.Net
     public class TableMapping
     {
         private readonly Column _autoPk;
-        private readonly ISQLitePlatform _sqlitePlatform;
         private Column[] _insertColumns;
-        private PreparedSqlLiteInsertCommand _insertCommand;
-        private string _insertCommandExtra;
-        private Column[] _insertOrReplaceColumns;
 
-        public TableMapping(ISQLitePlatform platformImplementation, Type type,
-                            CreateFlags createFlags = CreateFlags.None)
+        [PublicAPI]
+        public TableMapping(Type type, IEnumerable<PropertyInfo> properties, CreateFlags createFlags = CreateFlags.None)
         {
-            _sqlitePlatform = platformImplementation;
             MappedType = type;
 
-            var tableAttr = type.GetTypeInfo().CustomAttributes.FirstOrDefault(data => data.AttributeType == typeof(TableAttribute));
+            var tableAttr = type.GetTypeInfo().GetCustomAttributes<TableAttribute>().FirstOrDefault();
 
-            TableName = tableAttr != null ? (string)tableAttr.ConstructorArguments.FirstOrDefault().Value : MappedType.Name;
+            TableName = tableAttr != null ?  tableAttr.Name : MappedType.Name;
 
-            IEnumerable<PropertyInfo> props = _sqlitePlatform.ReflectionService.GetPublicInstanceProperties(MappedType);
+            var props = properties;
 
             var cols = new List<Column>();
-            foreach (PropertyInfo p in props)
+            foreach (var p in props)
             {
-                bool ignore = p.GetCustomAttributes<IgnoreAttribute>(true).Any();
+                var ignore = p.IsDefined(typeof (IgnoreAttribute), true);
 
                 if (p.CanWrite && !ignore)
                 {
@@ -61,7 +57,7 @@ namespace SQLite.Net
                 }
             }
             Columns = cols.ToArray();
-            foreach (Column c in Columns)
+            foreach (var c in Columns)
             {
                 if (c.IsAutoInc && c.IsPK)
                 {
@@ -86,42 +82,31 @@ namespace SQLite.Net
             }
         }
 
+        [PublicAPI]
         public Type MappedType { get; private set; }
 
+        [PublicAPI]
         public string TableName { get; private set; }
 
+        [PublicAPI]
         public Column[] Columns { get; private set; }
 
+        [PublicAPI]
         public Column PK { get; private set; }
 
+        [PublicAPI]
         public string GetByPrimaryKeySql { get; private set; }
 
+        [PublicAPI]
         public bool HasAutoIncPK { get; private set; }
 
+        [PublicAPI]
         public Column[] InsertColumns
         {
-            get
-            {
-                if (_insertColumns == null)
-                {
-                    _insertColumns = Columns.Where(c => !c.IsAutoInc).ToArray();
-                }
-                return _insertColumns;
-            }
+            get { return _insertColumns ?? (_insertColumns = Columns.Where(c => !c.IsAutoInc).ToArray()); }
         }
 
-        public Column[] InsertOrReplaceColumns
-        {
-            get
-            {
-                if (_insertOrReplaceColumns == null)
-                {
-                    _insertOrReplaceColumns = Columns.ToArray();
-                }
-                return _insertOrReplaceColumns;
-            }
-        }
-
+        [PublicAPI]
         public void SetAutoIncPK(object obj, long id)
         {
             if (_autoPk != null)
@@ -130,76 +115,25 @@ namespace SQLite.Net
             }
         }
 
+        [PublicAPI]
         public Column FindColumnWithPropertyName(string propertyName)
         {
-            Column exact = Columns.FirstOrDefault(c => c.PropertyName == propertyName);
+            var exact = Columns.FirstOrDefault(c => c.PropertyName == propertyName);
             return exact;
         }
 
+        [PublicAPI]
         public Column FindColumn(string columnName)
         {
-            Column exact = Columns.FirstOrDefault(c => c.Name == columnName);
+            var exact = Columns.FirstOrDefault(c => c.Name == columnName);
             return exact;
-        }
-
-        public PreparedSqlLiteInsertCommand GetInsertCommand(SQLiteConnection conn, string extra)
-        {
-            if (_insertCommand == null)
-            {
-                _insertCommand = CreateInsertCommand(conn, extra);
-                _insertCommandExtra = extra;
-            }
-            else if (_insertCommandExtra != extra)
-            {
-                _insertCommand.Dispose();
-                _insertCommand = CreateInsertCommand(conn, extra);
-                _insertCommandExtra = extra;
-            }
-            return _insertCommand;
-        }
-
-        private PreparedSqlLiteInsertCommand CreateInsertCommand(SQLiteConnection conn, string extra)
-        {
-            Column[] cols = InsertColumns;
-            string insertSql;
-            if (!cols.Any() && Columns.Count() == 1 && Columns[0].IsAutoInc)
-            {
-                insertSql = string.Format("insert {1} into \"{0}\" default values", TableName, extra);
-            }
-            else
-            {
-                bool replacing = string.Compare(extra, "OR REPLACE", StringComparison.OrdinalIgnoreCase) == 0;
-
-                if (replacing)
-                {
-                    cols = InsertOrReplaceColumns;
-                }
-
-                insertSql = string.Format("insert {3} into \"{0}\"({1}) values ({2})", TableName,
-                    string.Join(",", (from c in cols
-                                                     select "\"" + c.Name + "\"").ToArray()),
-                    string.Join(",", (from c in cols
-                                                     select "?").ToArray()), extra);
-            }
-
-            var insertCommand = new PreparedSqlLiteInsertCommand(_sqlitePlatform, conn);
-            insertCommand.CommandText = insertSql;
-            return insertCommand;
-        }
-
-        protected internal void Dispose()
-        {
-            if (_insertCommand != null)
-            {
-                _insertCommand.Dispose();
-                _insertCommand = null;
-            }
         }
 
         public class Column
         {
             private readonly PropertyInfo _prop;
 
+            [PublicAPI]
             public Column(PropertyInfo prop, CreateFlags createFlags = CreateFlags.None)
             {
                 var colAttr =
@@ -212,13 +146,15 @@ namespace SQLite.Net
                 Collation = Orm.Collation(prop);
 
                 IsPK = Orm.IsPK(prop) ||
-                (((createFlags & CreateFlags.ImplicitPK) == CreateFlags.ImplicitPK) &&
-                string.Compare(prop.Name, Orm.ImplicitPkName, StringComparison.OrdinalIgnoreCase) == 0);
+                       (((createFlags & CreateFlags.ImplicitPK) == CreateFlags.ImplicitPK) &&
+                        string.Compare(prop.Name, Orm.ImplicitPkName, StringComparison.OrdinalIgnoreCase) == 0);
 
-                bool isAuto = Orm.IsAutoInc(prop) ||
-                              (IsPK && ((createFlags & CreateFlags.AutoIncPK) == CreateFlags.AutoIncPK));
-                IsAutoGuid = isAuto && ColumnType == typeof(Guid);
+                var isAuto = Orm.IsAutoInc(prop) ||
+                             (IsPK && ((createFlags & CreateFlags.AutoIncPK) == CreateFlags.AutoIncPK));
+                IsAutoGuid = isAuto && ColumnType == typeof (Guid);
                 IsAutoInc = isAuto && !IsAutoGuid;
+
+                DefaultValue = Orm.GetDefaultValue(prop);
 
                 Indices = Orm.GetIndices(prop);
                 if (!Indices.Any()
@@ -226,59 +162,69 @@ namespace SQLite.Net
                     && ((createFlags & CreateFlags.ImplicitIndex) == CreateFlags.ImplicitIndex)
                     && Name.EndsWith(Orm.ImplicitIndexSuffix, StringComparison.OrdinalIgnoreCase))
                 {
-                    Indices = new[] { new IndexedAttribute() };
+                    Indices = new[] {new IndexedAttribute()};
                 }
                 IsNullable = !(IsPK || Orm.IsMarkedNotNull(prop));
                 MaxStringLength = Orm.MaxStringLength(prop);
             }
 
+            [PublicAPI]
             public string Name { get; private set; }
 
+            [PublicAPI]
             public string PropertyName
             {
                 get { return _prop.Name; }
             }
 
+            [PublicAPI]
             public Type ColumnType { get; private set; }
 
+            [PublicAPI]
             public string Collation { get; private set; }
 
+            [PublicAPI]
             public bool IsAutoInc { get; private set; }
 
+            [PublicAPI]
             public bool IsAutoGuid { get; private set; }
 
+            [PublicAPI]
             public bool IsPK { get; private set; }
 
+            [PublicAPI]
             public IEnumerable<IndexedAttribute> Indices { get; set; }
 
+            [PublicAPI]
             public bool IsNullable { get; private set; }
 
+            [PublicAPI]
             public int? MaxStringLength { get; private set; }
+
+            [PublicAPI]
+            public object DefaultValue { get; private set; }
 
             /// <summary>
             ///     Set column value.
             /// </summary>
             /// <param name="obj"></param>
             /// <param name="val"></param>
-            /// <remarks>
-            ///     Copied from: http://code.google.com/p/sqlite-net/issues/detail?id=47
-            /// </remarks>
-            public void SetValue(object obj, object val)
+            [PublicAPI]
+            public void SetValue(object obj, [CanBeNull] object val)
             {
-                Type propType = _prop.PropertyType;
+                var propType = _prop.PropertyType;
+                var typeInfo = propType.GetTypeInfo();
 
-
-
-                if (propType.GetTypeInfo().IsGenericType && propType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                if (typeInfo.IsGenericType && propType.GetGenericTypeDefinition() == typeof (Nullable<>))
                 {
-                    Type[] typeCol = propType.GetTypeInfo().GenericTypeArguments;
+                    var typeCol = propType.GetTypeInfo().GenericTypeArguments;
                     if (typeCol.Length > 0)
                     {
-                        Type nullableType = typeCol[0];
-                        if (nullableType.GetTypeInfo().BaseType == typeof(Enum))
+                        var nullableType = typeCol[0];
+                        var baseType = nullableType.GetTypeInfo().BaseType;
+                        if (baseType == typeof (Enum))
                         {
-                            object result = val == null ? null : Enum.Parse(nullableType, val.ToString(), false);
-                            _prop.SetValue(obj, result, null);
+                            SetEnumValue(obj, nullableType, val);
                         }
                         else
                         {
@@ -286,12 +232,27 @@ namespace SQLite.Net
                         }
                     }
                 }
+                else if (typeInfo.BaseType == typeof (Enum))
+                {
+                    SetEnumValue(obj, propType, val);
+                }
                 else
                 {
                     _prop.SetValue(obj, val, null);
                 }
             }
 
+            private void SetEnumValue(object obj, Type type, object value)
+            {
+                var result = value;
+                if (result != null)
+                {
+                    result = Enum.ToObject(type, result);
+                    _prop.SetValue(obj, result, null);
+                }
+            }
+
+            [PublicAPI]
             public object GetValue(object obj)
             {
                 return _prop.GetValue(obj, null);
